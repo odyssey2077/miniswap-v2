@@ -17,6 +17,7 @@ error InsufficientOutputAmount();
 error InsufficientLiquidity();
 error InvalidK();
 error BalanceOverflow();
+error AlreadyInitialized();
 
 contract MiniswapV2Pair is ERC20, Math {
     using UQ112x112 for uint224;
@@ -128,8 +129,8 @@ contract MiniswapV2Pair is ERC20, Math {
         unchecked {
             uint32 timeElapsed = uint32(block.timestamp) - blockTimestampLast;
             if (timeElapsed > 0 && reserve0_ > 0 && reserve1_ > 0) {
-                price0CumulativeLast += uint256(UQ112X112.encode(reserve1_).uqdiv(reserve0_)) * timeElapsed;
-                price1CumulativeLast += uint256(UQ112X112.encode(reserve0_).uqdiv(reserve1_)) * timeElapsed;
+                price0CumulativeLast += uint256(UQ112x112.encode(reserve1_).uqdiv(reserve0_)) * timeElapsed;
+                price1CumulativeLast += uint256(UQ112x112.encode(reserve0_).uqdiv(reserve1_)) * timeElapsed;
             }
         }
 
@@ -149,5 +150,13 @@ contract MiniswapV2Pair is ERC20, Math {
         if (!success || (data.length != 0 && !abi.decode(data, (bool)))) {
             revert TransferFailed();
         }
+    }
+
+    function initialize(address token0_, address token1_) public {
+        if (token0 != address(0) || token1 != address(0))
+            revert AlreadyInitialized();
+
+        token0 = token0_;
+        token1 = token1_;
     }
 }
