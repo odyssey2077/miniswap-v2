@@ -31,7 +31,18 @@ contract MiniswapV2Router {
 
         _safeTransferFrom(tokenA, msg.sender, pairAddress, amountA);
         _safeTransferFrom(tokenB, msg.sender, pairAddress, amountB);
-        liquidity = IMiniswapV2Pair(pairAddress).mint(to);
+        liquidity = IMiniswapV2Pair(pairAddress).mint(msg.sender);
+    }
+
+    function removeLiquidity(address tokenA, address tokenB, uint256 liquidity, uint256 amountAMin, uint256 amountBMin, address to)
+    public returns (uint256 amountA, uint256 amountB) {
+        address pair = MiniswapV2Library.pairFor(address(factory), tokenA, tokenB);
+        IMiniswapV2Pair(pair).transferFrom(msg.sender, pair, liquidity);
+
+        (amountA, amountB) = IMiniswapV2Pair(pair).burn(to);
+
+        if (amountA < amountAMin) revert InsufficientAAmount();
+        if (amountB < amountBMin) revert InsufficientBAmount();
     }
 
     function _calculateLiquidity(address tokenA, address tokenB, 

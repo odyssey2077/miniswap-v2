@@ -11,4 +11,8 @@ interface IMiniswapV2Pair {
             uint112,
             uint32
         );    
+
+    function transferFrom(address from, address to, uint256 amount) external;
+
+    function burn(address) external returns (uint256, uint256);
 }

@@ -35,7 +35,7 @@ contract MiniswapV2Pair is ERC20, Math {
 
     uint private unlocked = 1;
 
-    event Burn(address indexed sender, uint256 amount0, uint256 amount1);
+    event Burn(address indexed sender, uint256 amount0, uint256 amount1, address to);
     event Mint(address indexed sender, uint256 amount0, uint256 amount1);
     event Sync(uint256 reserve0, uint256 reserve1);
     event Swap(address indexed sender, uint256 amount0, uint256 amount1, address to);
@@ -76,26 +76,26 @@ contract MiniswapV2Pair is ERC20, Math {
         emit Mint(msg.sender, amount0, amount1);
     }
 
-    function burn() public {
+    function burn(address to) public returns (uint256 amount0, uint256 amount1) {
         (uint112 reserve0_, uint112 reserve1_,) = getReserves();
         uint256 balance0 = IERC20(token0).balanceOf(address(this));
         uint256 balance1 = IERC20(token1).balanceOf(address(this));
-        uint256 liquidity = balanceOf[msg.sender];
+        uint256 liquidity = balanceOf[address(this)];
 
-        uint256 amount0 = (liquidity * balance0) / totalSupply;
-        uint256 amount1 = (liquidity * balance1) / totalSupply;
+        amount0 = (liquidity * balance0) / totalSupply;
+        amount1 = (liquidity * balance1) / totalSupply;
 
-        if (amount0 <= 0 || amount1 <= 0) revert InsufficientLiquidityBurned();
-        _burn(msg.sender, liquidity);
-        _safeTransfer(token0, msg.sender, amount0);
-        _safeTransfer(token1, msg.sender, amount1);        
+        if (amount0 == 0 || amount1 == 0) revert InsufficientLiquidityBurned();
+        _burn(address(this), liquidity);
+        _safeTransfer(token0, to, amount0);
+        _safeTransfer(token1, to, amount1);        
 
         balance0 = IERC20(token0).balanceOf(address(this));
         balance1 = IERC20(token1).balanceOf(address(this));
 
         _update(balance0, balance1, reserve0_, reserve1_);
 
-        emit Burn(msg.sender, amount0, amount1);
+        emit Burn(msg.sender, amount0, amount1, to);
     }
 
     function swap(uint256 amount0Out, uint256 amount1Out, address to) public {
