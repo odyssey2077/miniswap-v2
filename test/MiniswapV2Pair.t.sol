@@ -77,7 +77,7 @@ contract MiniswapV2PairTest is Test {
         token1.transfer(address(pair), 1 ether);
 
         pair.mint();
-        pair.burn();
+        pair.burn(address(testUser));
 
         assertEq(pair.balanceOf(address(this)), 0);
         assertReserves(1000, 1000);
@@ -97,7 +97,7 @@ contract MiniswapV2PairTest is Test {
 
         pair.mint(); // + 1 LP
 
-        pair.burn();
+        pair.burn(address(testUser));
 
         assertEq(pair.balanceOf(address(this)), 0);
         assertReserves(1500, 1000);
@@ -124,7 +124,7 @@ contract MiniswapV2PairTest is Test {
 
         pair.mint(); // + 1 LP
 
-        pair.burn();
+        pair.burn(address(testUser));
 
         // this user is penalized for providing unbalanced liquidity
         assertEq(pair.balanceOf(address(this)), 0);
@@ -162,6 +162,6 @@ contract TestUser {
     }
 
     function withdrawLiquidity(address pairAddress_) public {
-        MiniswapV2Pair(pairAddress_).burn();
+        MiniswapV2Pair(pairAddress_).burn(address(this));
     }
 }

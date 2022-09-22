@@ -7,6 +7,7 @@ import {MiniswapV2Pair} from "./MiniswapV2Pair.sol";
 library MiniswapV2Library {
     error InsufficientAmount();
     error InsufficientLiquidity();
+    error InvalidPath();
 
     function getReserves(address factoryAddress,
      address tokenA, address tokenB) public returns (uint256 reserveA, uint256 reserveB) {
@@ -29,6 +30,42 @@ library MiniswapV2Library {
         uint256 numerator = amountInWithFee * reserveOut;
         uint256 denominator = (reserveIn * 1000) + amountInWithFee;
         return numerator / denominator;
+    }
+    function getAmountsOut(address factoryAddress, uint256 amountIn, address[] memory path) public returns (uint256[] memory amountsOut) {
+        if (amountIn == 0) revert InsufficientAmount();
+        if (path.length < 2) revert InvalidPath();
+
+        amountsOut = new uint256[](path.length);
+        amountsOut[0] = amountIn;
+        
+        for (uint256 i; i < path.length - 1; i ++) {
+            (uint256 reserveA, uint256 reserveB) = getReserves(factoryAddress, path[i], path[i+1]);
+            uint256 amountOut = getAmountOut(amountsOut[i], reserveA, reserveB);
+            amountsOut[i+1] = amountOut;
+        }
+    }
+
+    function getAmountIn(uint256 amountOut, uint256 reserveIn, uint256 reserveOut) public pure returns(uint256) {
+        if (amountOut == 0) revert InsufficientAmount();
+        if (reserveIn == 0 || reserveOut == 0) revert InsufficientLiquidity();
+        uint256 numerator = reserveIn * amountOut * 1000;
+        uint256 denominator = (reserveOut - amountOut) * 997;
+
+        return (numerator / denominator) + 1;    
+    }
+
+    function getAmountsIn(address factoryAddress, uint256 amountOut, address[] memory path) public returns (uint256[] memory amountsIn) {
+        if (amountOut == 0) revert InsufficientAmount();
+        if (path.length < 2) revert InvalidPath();
+
+        amountsIn = new uint256[](path.length);
+        amountsIn[path.length - 1] = amountOut;
+        
+        for (uint256 i = path.length - 1; i > 0; i--) {
+            (uint256 reserveA, uint256 reserveB) = getReserves(factoryAddress, path[i], path[i-1]);
+            uint256 amountIn = getAmountIn(amountsIn[i], reserveA, reserveB);
+            amountsIn[i-1] = amountIn;
+        }
     }
 
     function sortTokens(address tokenA, address tokenB) public pure returns (address, address) {

@@ -9,6 +9,9 @@ contract MiniswapV2Router {
     error InsufficientBAmount();
     error SafeTransferFailed();    
     error TransferFailed();
+    error InsufficientOutputAmount();
+    error ExcessiveInputAmount();
+
     IMiniswapV2Factory factory;
 
     constructor(address factoryAddress) {
@@ -31,7 +34,7 @@ contract MiniswapV2Router {
 
         _safeTransferFrom(tokenA, msg.sender, pairAddress, amountA);
         _safeTransferFrom(tokenB, msg.sender, pairAddress, amountB);
-        liquidity = IMiniswapV2Pair(pairAddress).mint(msg.sender);
+        liquidity = IMiniswapV2Pair(pairAddress).mint(to);
     }
 
     function removeLiquidity(address tokenA, address tokenB, uint256 liquidity, uint256 amountAMin, uint256 amountBMin, address to)
@@ -43,6 +46,33 @@ contract MiniswapV2Router {
 
         if (amountA < amountAMin) revert InsufficientAAmount();
         if (amountB < amountBMin) revert InsufficientBAmount();
+    }
+
+    function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, address[] calldata path, address to) 
+    public returns (uint256[] memory amounts) {
+        amounts = MiniswapV2Library.getAmountsOut(address(factory), amountIn, path);
+        if (amounts[amounts.length - 1] < amountOutMin) revert InsufficientOutputAmount();
+        _safeTransferFrom(path[0], msg.sender, MiniswapV2Library.pairFor(address(factory), path[0], path[1]), amounts[0]);
+        _swap(amounts, path, to);
+    }
+
+    function swapTokensForExactTokens(uint256 amountOut, uint256 amountInMin, address[] calldata path, address to) 
+    public returns (uint256[] memory amounts) {
+        amounts = MiniswapV2Library.getAmountsIn(address(factory), amountOut, path);
+        if (amounts[0] > amountInMin) revert ExcessiveInputAmount();
+        _safeTransferFrom(path[0], msg.sender, MiniswapV2Library.pairFor(address(factory), path[0], path[1]), amounts[0]);
+        _swap(amounts, path, to);
+    }    
+
+    function _swap(uint256[] memory amounts, address[] memory path, address to_) internal {
+        for (uint256 i; i < path.length - 1; i++) {
+            (address input, address output) = (path[i], path[i+1]);
+            (address token0, ) = MiniswapV2Library.sortTokens(input, output);
+            uint256 amountOut = amounts[i+1];
+            (uint256 amount0Out, uint256 amount1Out) = input == token0 ? (uint256(0), amountOut) : (amountOut, uint256(0));
+            address to = i < path.length - 2 ? MiniswapV2Library.pairFor(address(factory), path[i+1], path[i+2]) : to_;
+            IMiniswapV2Pair(MiniswapV2Library.pairFor(address(factory), input, output)).swap(amount0Out, amount1Out, to);
+        }
     }
 
     function _calculateLiquidity(address tokenA, address tokenB, 
