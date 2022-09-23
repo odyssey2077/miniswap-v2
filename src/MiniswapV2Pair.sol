@@ -18,6 +18,7 @@ error InsufficientLiquidity();
 error InvalidK();
 error BalanceOverflow();
 error AlreadyInitialized();
+error InsufficientInputAmount();
 
 contract MiniswapV2Pair is ERC20, Math {
     using UQ112x112 for uint224;
@@ -98,24 +99,25 @@ contract MiniswapV2Pair is ERC20, Math {
         emit Burn(msg.sender, amount0, amount1, to);
     }
 
-    function swap(uint256 amount0Out, uint256 amount1Out, address to) public {
-        if (amount0Out == 0 && amount1Out == 0) {
-            revert InsufficientOutputAmount();
-        }
-        (uint112 reserve0_, uint112 reserve1_,) = getReserves();
-
-        if (amount0Out > reserve0_ || amount1Out > reserve1_) {
-            revert InsufficientLiquidity();
-        }
-
-        uint256 balance0 = IERC20(token0).balanceOf(address(this)) - amount0Out;
-        uint256 balance1 = IERC20(token1).balanceOf(address(this)) - amount1Out;
-
-        if (balance0 * balance1 < reserve0_ * reserve1_) 
-            revert InvalidK();
-        
+    function swap(uint256 amount0Out, uint256 amount1Out, address to) public {        
         if (amount0Out > 0) _safeTransfer(token0, to, amount0Out);
         if (amount1Out > 0) _safeTransfer(token1, to, amount1Out);
+
+        (uint112 reserve0_, uint112 reserve1_, ) = getReserves();
+
+        uint256 balance0 = IERC20(token0).balanceOf(address(this));
+        uint256 balance1 = IERC20(token1).balanceOf(address(this));
+
+        uint256 amount0In = balance0 + amount0Out > reserve0_ ? balance0 + amount0Out - reserve0_ : 0;
+        uint256 amount1In = balance1 + amount1Out > reserve1_ ? balance0 + amount0Out - reserve1_ : 0;
+
+        if (amount0In == 0 && amount1In == 0) revert InsufficientInputAmount();
+
+        uint256 balance0Adjusted = balance0 * 1000 - amount0In * 3;
+        uint256 balance1Adjusted = balance1 * 1000 - amount1In * 3;
+
+        if (balance0Adjusted * balance1Adjusted < uint256(reserve0) * uint256(reserve1) * (1000**2))
+            revert InvalidK();
 
         _update(balance0, balance1, reserve0_, reserve1_);
 
