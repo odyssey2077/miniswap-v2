@@ -3,11 +3,12 @@ pragma solidity ^0.8.10;
 import "solmate/tokens/ERC20.sol";
 import "./libraries/Math.sol";
 import "./libraries/UQ112x112.sol";
+import "./interfaces/IMiniswapv2Callee.sol";
 
 interface IERC20 {
     function balanceOf(address) external returns (uint256);
 
-    function trasnfer(address to, uint256 amount) external;
+    function transfer(address to, uint256 amount) external;
 }
 
 error InsufficientLiquidityMinted();
@@ -41,6 +42,7 @@ contract MiniswapV2Pair is ERC20, Math {
     event Sync(uint256 reserve0, uint256 reserve1);
     event Swap(address indexed sender, uint256 amount0, uint256 amount1, address to);
 
+    
     modifier lock() {
         require(unlocked == 1);
         unlocked = 0;
@@ -99,9 +101,10 @@ contract MiniswapV2Pair is ERC20, Math {
         emit Burn(msg.sender, amount0, amount1, to);
     }
 
-    function swap(uint256 amount0Out, uint256 amount1Out, address to) public {        
+    function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data) public lock {        
         if (amount0Out > 0) _safeTransfer(token0, to, amount0Out);
         if (amount1Out > 0) _safeTransfer(token1, to, amount1Out);
+        if (data.length > 0) IMiniswapV2Callee(to).miniswapV2Call(msg.sender, amount0Out, amount1Out, data);
 
         (uint112 reserve0_, uint112 reserve1_, ) = getReserves();
 
